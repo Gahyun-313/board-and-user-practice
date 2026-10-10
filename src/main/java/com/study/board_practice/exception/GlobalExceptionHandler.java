@@ -12,7 +12,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DuplicateUserException.class)
     public ResponseEntity<String> handleDuplicateUser(DuplicateUserException e) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body("존재하는 id입니다.");
+                .body(e.getMessage());
     }
 
     /** 401 (Unauthorized) - 아이디 또는 비밀번호 불일치 */
@@ -21,4 +21,19 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(e.getMessage());
     }
+
+    /** 404 (Not Found) - 존재하지 않는 유저 */
+    @ExceptionHandler(UserNotFoundException.class)
+    public ResponseEntity<String> handleUserNotFound(UserNotFoundException e) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(e.getMessage());
+    }
+
+    /** 404 (Not Found) - 존재하지 않는 글 */
+    @ExceptionHandler(PostNotFoundException.class)
+    public ResponseEntity<String> handlePostNotFound(PostNotFoundException e) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(e.getMessage());
+    }
+
 }
