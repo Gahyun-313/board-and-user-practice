@@ -9,12 +9,12 @@ public class PostCreateRequest {
     private String title;
     private String content;
 
-    // 생성자
+    // getter
     public int getAuthorId() { return authorId; }
     public String getTitle() { return title; }
     public String getContent() { return content; }
 
-    // 메서드
+    // setter
     public void setAuthorId(int authorId) { this.authorId = authorId; }
     public void setTitle(String title) { this.title = title; }
     public void setContent(String content) { this.content = content; }
