@@ -3,6 +3,7 @@ package com.study.board_practice.controller;
 import com.study.board_practice.domain.Post;
 import com.study.board_practice.dto.PostCreateRequest;
 import com.study.board_practice.dto.PostResponse;
+import com.study.board_practice.dto.PostUpdateRequest;
 import com.study.board_practice.service.PostService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,7 +22,8 @@ public class PostController {
 
     // 글 작성
     @PostMapping("/api/posts")
-    public ResponseEntity<Integer> createPost(@RequestBody PostCreateRequest request) {
+    public ResponseEntity<Integer> createPost(
+            @RequestBody PostCreateRequest request) {
         // 글 작성 응답은 "방금 만든 글의 번호"만 주고, 클라이언트가 내용을 보고 싶을 경우 GET /api/posts/{id}로 조회
         // Post 자체를 응답으로 내려주면 민감정보가 노출될 수 있기 때문에 id만 리턴
         return ResponseEntity
@@ -43,5 +45,14 @@ public class PostController {
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(postService.getPost(id));
+    }
+
+    // 글 수정
+    @PutMapping("/api/posts/{id}")
+    public ResponseEntity<PostResponse> updatePost(
+            @PathVariable int id, @RequestBody PostUpdateRequest request) {
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(postService.updatePost(id, request));
     }
 }
