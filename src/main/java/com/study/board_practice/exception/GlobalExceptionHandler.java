@@ -36,4 +36,11 @@ public class GlobalExceptionHandler {
                 .body(e.getMessage());
     }
 
+    /** 403 - 작성자만 수정할 수 있음 */
+    @ExceptionHandler(PostAccessDeniedException.class)
+    public ResponseEntity<String> handlePostAccessDenied(PostAccessDeniedException e) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(e.getMessage());
+    }
+
 }
