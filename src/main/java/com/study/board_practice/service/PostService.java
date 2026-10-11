@@ -4,6 +4,8 @@ import com.study.board_practice.domain.Post;
 import com.study.board_practice.domain.User;
 import com.study.board_practice.dto.PostCreateRequest;
 import com.study.board_practice.dto.PostResponse;
+import com.study.board_practice.dto.PostUpdateRequest;
+import com.study.board_practice.exception.PostAccessDeniedException;
 import com.study.board_practice.exception.PostNotFoundException;
 import com.study.board_practice.exception.UserNotFoundException;
 import com.study.board_practice.repository.PostRepository;
@@ -65,8 +67,25 @@ public class PostService {
     }
 
     // 글 수정
+    @Transactional
+    public PostResponse updatePost(int id, PostUpdateRequest request) {
+        // 1. id로 글 찾기 -> 없으면 PostNotFoundException
+        Post post = postRepository.findById(id)
+                .orElseThrow(PostNotFoundException::new);
+
+        // 2. 글의 작성자 id와 요청자의 id 비교 -> 다르면 PostAccessDeniedException
+        if (post.getAuthor().getId() != request.getAuthorId()) {
+            throw new PostAccessDeniedException();
+        }
+
+        post.update(request.getTitle(), request.getContent());
+        // flush - @PreUpdate(updatedAt 세팅)는 flush 때 실행되므로 응답 만들기 전에 먼저 flush함
+        postRepository.flush();
+
+        return PostResponse.from(post);
+    }
 
     // 글 삭제
 
-    // 내가 쓴 글
+    // 내가 쓴 글 조회
 }
