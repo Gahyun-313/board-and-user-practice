@@ -20,11 +20,13 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(PostController.class)
@@ -191,6 +193,44 @@ class PostControllerTest {
                     .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isForbidden())
                 .andExpect(content().string("작성자만 수정할 수 있습니다."));
+
+    }
+
+    @Test
+    void 글_삭제_성공() throws Exception {
+        // given 필요 없음 -> deletePost가 void인 mock은 아무 설정 없이도 예외 없이 지나가기 때문.
+
+        mockMvc.perform(delete("/api/posts/5")
+                .param("authorId", "3"))
+                .andExpect(status().isNoContent());
+
+        verify(postService, times(1)).deletePost(5, 3);
+    }
+
+    @Test
+    void 글_삭제_글_없음() throws Exception {
+        // given
+        // void 메서드가 예외를 던지게 함 -> doThrow().when(mock).메서드(인자)
+        // when().thenThrow()를 못 쓰는 이유 -> service.deletePost(1, 1)의 반환값이 void이므로 식이 성립하지 않음
+        doThrow(new PostNotFoundException())
+                .when(postService).deletePost(1, 1);
+
+        // when & then
+        mockMvc.perform(delete("/api/posts/1").param("authorId", "1"))
+                .andExpect(status().isNotFound())
+                .andExpect(content().string("존재하지 않는 글입니다."));
+    }
+
+    @Test
+    void 글_삭제_작성자_불일치() throws Exception {
+        // given
+        doThrow(new PostAccessDeniedException())
+                .when(postService).deletePost(1, 1);
+
+        // when & then
+        mockMvc.perform(delete("/api/posts/1").param("authorId", "1"))
+                .andExpect(status().isForbidden())
+                .andExpect(content().string("작성자만 수정/삭제할 수 있습니다."));
 
     }
 }
