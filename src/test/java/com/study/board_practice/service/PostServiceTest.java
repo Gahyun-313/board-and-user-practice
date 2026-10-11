@@ -4,6 +4,8 @@ import com.study.board_practice.domain.Post;
 import com.study.board_practice.domain.User;
 import com.study.board_practice.dto.PostCreateRequest;
 import com.study.board_practice.dto.PostResponse;
+import com.study.board_practice.dto.PostUpdateRequest;
+import com.study.board_practice.exception.PostAccessDeniedException;
 import com.study.board_practice.exception.PostNotFoundException;
 import com.study.board_practice.exception.UserNotFoundException;
 import com.study.board_practice.repository.PostRepository;
@@ -17,8 +19,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.List;
 import java.util.Optional;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -125,13 +126,16 @@ class PostServiceTest {
         List<PostResponse> results = postService.getPosts();
 
         // then
+        // 리스트 개수 일치 확인
         assertThat(results).hasSize(2); // before: assertThat(results.size()).isEqualTo(2);
 
+        // post1 내용 일치 확인
         assertThat(results.get(0).getAuthorNickname())
                 .isEqualTo(post1.getAuthor().getNickname());
         assertThat(results.get(0).getTitle()).isEqualTo(post1.getTitle());
         assertThat(results.get(0).getContent()).isEqualTo(post1.getContent());
 
+        // post2 내용 일치 확인
         assertThat(results.get(1).getAuthorNickname())
                 .isEqualTo(post2.getAuthor().getNickname());
         assertThat(results.get(1).getTitle()).isEqualTo(post2.getTitle());
@@ -149,5 +153,87 @@ class PostServiceTest {
 
         // then
         assertThat(results).isEmpty();
+    }
+
+    /** updatePost 성공 */
+    @Test
+    void 글_수정_성공() {
+        // given
+        // 1. 가짜 User 만들기 : id = 1, 닉네임은 정해두기
+        User user1 = mock(User.class);
+        when(user1.getNickname()).thenReturn("name1");
+        when(user1.getId()).thenReturn(1);
+
+        // 2. 그 User로 Post 만들기 (원래 제목/내용)
+        Post post1 = new Post(user1, "title1", "content1");
+
+        // 3. findById(1)이 그 Post를 반환하게 하기
+        when(postRepository.findById(1)).thenReturn(Optional.of(post1));
+
+        // 4. request 만들기: authorId는 가짜 User의 id와 같게(1), 새 제목/내용
+        PostUpdateRequest request = new PostUpdateRequest();
+        request.setAuthorId(1);
+        request.setTitle("updated title");
+        request.setContent("updated content");
+
+        // when
+        // 5. updatePost(1, request) 호출해서 결과 받기
+        PostResponse response = postService.updatePost(1, request);
+
+        // then
+        // 6. 결과의 title/content가 새 값(리터럴)인지 검증
+        assertThat(response.getTitle()).isEqualTo("updated title");
+        assertThat(response.getContent()).isEqualTo("updated content");
+
+        // 7. 결과의 작성자 닉네임이 정해둔 닉네임인지 검증
+        assertThat(response.getAuthorNickname()).isEqualTo("name1");
+
+        // 8. verify(postRepository, times(1)).flush()로 flush가 불렸는지 확인
+        verify(postRepository, times(1)).flush();
+    }
+
+    /** updatePost 글 없음 예외 */
+    @Test
+    void 글_수정_글_없음_예외() {
+        // given
+        // 빈 값을 줘야 함
+        when(postRepository.findById(1)).thenReturn(Optional.empty());
+
+        PostUpdateRequest request = new PostUpdateRequest();
+        request.setAuthorId(3);
+        request.setTitle("Title3");
+        request.setContent("Content3");
+
+        // when & then
+        assertThatThrownBy(() -> postService.updatePost(1, request))
+                .isInstanceOf(PostNotFoundException.class)
+                .hasMessage("존재하지 않는 글입니다.");
+    }
+
+    /** updatePost 작성자 불일치 예외 */
+    @Test
+    void 글_수정_작성자_불일치_예외() {
+        // given
+        User user1 = mock(User.class);
+        when(user1.getId()).thenReturn(1);
+
+        Post post = new Post(user1, "title1", "content1");
+        when(postRepository.findById(1)).thenReturn(Optional.of(post));
+
+        PostUpdateRequest request = new PostUpdateRequest();
+        request.setAuthorId(3);
+        request.setTitle("Title3");
+        request.setContent("Content3");
+
+        // 진짜 Service가 알아서 예외를 던져주므로 예외를 따로 심어주지 않아도 됨
+        //when(postService.updatePost(1, request)).thenThrow(PostAccessDeniedException.class);
+
+        // when & then
+        assertThatThrownBy(() -> postService.updatePost(1, request))
+                .isInstanceOf(PostAccessDeniedException.class)
+                .hasMessage("작성자만 수정할 수 있습니다.");
+
+        // 권한 검사가 수정보다 먼저 실행됨을 검증
+        verify(postRepository, never()).flush();
     }
 }
