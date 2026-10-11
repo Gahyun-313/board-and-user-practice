@@ -55,4 +55,14 @@ public class PostController {
                 .status(HttpStatus.OK)
                 .body(postService.updatePost(id, request));
     }
+
+    // 글 삭제
+    @DeleteMapping("/api/posts/{id}")
+    public ResponseEntity<Void> deletePost(
+            @PathVariable int id, @RequestParam int authorId) {
+        postService.deletePost(id, authorId);
+        return ResponseEntity
+                .status(HttpStatus.NO_CONTENT)
+                .build(); // 응답 바디가 없을 때는 build() 사용
+    }
 }
