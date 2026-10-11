@@ -69,11 +69,11 @@ public class PostService {
     // 글 수정
     @Transactional
     public PostResponse updatePost(int id, PostUpdateRequest request) {
-        // 1. id로 글 찾기 -> 없으면 PostNotFoundException
+        // 글 찾기 -> 없으면 PostNotFoundException
         Post post = postRepository.findById(id)
                 .orElseThrow(PostNotFoundException::new);
 
-        // 2. 글의 작성자 id와 요청자의 id 비교 -> 다르면 PostAccessDeniedException
+        // 작성자 id와 요청자의 id 비교 -> 다르면 PostAccessDeniedException
         if (post.getAuthor().getId() != request.getAuthorId()) {
             throw new PostAccessDeniedException();
         }
@@ -86,6 +86,19 @@ public class PostService {
     }
 
     // 글 삭제
+    @Transactional
+    public void deletePost(int id, int authorId) {
+        // 글 찾기
+        Post post = postRepository.findById(id)
+                .orElseThrow(PostNotFoundException::new);
+
+        // 작성자 id와 요청자 id 비교
+        if (post.getAuthor().getId() != authorId) {
+            throw new PostAccessDeniedException();
+        }
+
+        postRepository.delete(post);
+    }
 
     // 내가 쓴 글 조회
 }
