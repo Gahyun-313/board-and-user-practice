@@ -51,11 +51,12 @@ class SignupServiceTest {
     @Test
     void 중복_아이디면_예외발생() {
         // given - "이 아이디는 이미 존재한다"고 가정
+        when(userRepository.existsByUserId("testId1")).thenReturn(true);
+
         SignupRequest request = new SignupRequest();
         request.setUserId("testId1");
         request.setPassword("1234");
         request.setNickname("testUser1");
-        when(userRepository.existsByUserId("testId1")).thenReturn(true);
 
         // when & then - signup 호출하면 RuntimeException이 터지는지 확인
         assertThatThrownBy(() -> signupService.signup(request))
