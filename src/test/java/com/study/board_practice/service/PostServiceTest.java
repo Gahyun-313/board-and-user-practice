@@ -159,36 +159,36 @@ class PostServiceTest {
     @Test
     void 글_수정_성공() {
         // given
-        // 1. 가짜 User 만들기 : id = 1, 닉네임은 정해두기
+        // 가짜 User 만들기 : id = 1, 닉네임은 정해두기
         User user1 = mock(User.class);
         when(user1.getNickname()).thenReturn("name1");
         when(user1.getId()).thenReturn(1);
 
-        // 2. 그 User로 Post 만들기 (원래 제목/내용)
+        // 그 User로 Post 만들기 (원래 제목/내용)
         Post post1 = new Post(user1, "title1", "content1");
 
-        // 3. findById(1)이 그 Post를 반환하게 하기
+        // findById(1)이 그 Post를 반환하게 하기
         when(postRepository.findById(1)).thenReturn(Optional.of(post1));
 
-        // 4. request 만들기: authorId는 가짜 User의 id와 같게(1), 새 제목/내용
+        // request 만들기: authorId는 가짜 User의 id와 같게(1), 새 제목/내용
         PostUpdateRequest request = new PostUpdateRequest();
         request.setAuthorId(1);
         request.setTitle("updated title");
         request.setContent("updated content");
 
         // when
-        // 5. updatePost(1, request) 호출해서 결과 받기
+        // updatePost(1, request) 호출해서 결과 받기
         PostResponse response = postService.updatePost(1, request);
 
         // then
-        // 6. 결과의 title/content가 새 값(리터럴)인지 검증
+        // 결과의 title/content가 새 값(리터럴)인지 검증
         assertThat(response.getTitle()).isEqualTo("updated title");
         assertThat(response.getContent()).isEqualTo("updated content");
 
-        // 7. 결과의 작성자 닉네임이 정해둔 닉네임인지 검증
+        // 결과의 작성자 닉네임이 정해둔 닉네임인지 검증
         assertThat(response.getAuthorNickname()).isEqualTo("name1");
 
-        // 8. verify(postRepository, times(1)).flush()로 flush가 불렸는지 확인
+        // verify(postRepository, times(1)).flush()로 flush가 불렸는지 확인
         verify(postRepository, times(1)).flush();
     }
 
@@ -235,5 +235,53 @@ class PostServiceTest {
 
         // 권한 검사가 수정보다 먼저 실행됨을 검증
         verify(postRepository, never()).flush();
+    }
+
+    @Test
+    void 글_삭제_성공() {
+        // given
+        User user1 = mock(User.class);
+        when(user1.getId()).thenReturn(1);
+
+        Post post = new Post(user1, "title1", "content1");
+        when(postRepository.findById(1)).thenReturn(Optional.of(post));
+
+        // when
+        postService.deletePost(1, 1);
+
+        // then
+        verify(postRepository, times(1)).delete(post);
+    }
+
+    @Test
+    void 글_삭제_글_없음_예외() {
+        // given
+        when(postRepository.findById(1)).thenReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> postService.deletePost(1, 1))
+                .isInstanceOf(PostNotFoundException.class)
+                .hasMessage("존재하지 않는 글입니다.");
+
+        // 삭제되지 않았음을 검증
+        verify(postRepository, never()).delete(any(Post.class));
+    }
+
+    @Test
+    void 글_삭제_작성자_불일치_예외() {
+        // given
+        User user1 = mock(User.class);
+        when(user1.getId()).thenReturn(1);
+
+        Post post = new Post(user1, "title1", "content1");
+        when(postRepository.findById(1)).thenReturn(Optional.of(post));
+
+        // when & then
+        assertThatThrownBy(() -> postService.deletePost(1, 2))
+                .isInstanceOf(PostAccessDeniedException.class)
+                .hasMessage("작성자만 수정/삭제할 수 있습니다.");
+
+        // 삭제되지 않았음을 검증
+        verify(postRepository, never()).delete(any(Post.class));
     }
 }
