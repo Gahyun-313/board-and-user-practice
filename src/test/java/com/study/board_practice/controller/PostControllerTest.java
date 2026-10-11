@@ -2,6 +2,8 @@ package com.study.board_practice.controller;
 
 import com.study.board_practice.dto.PostCreateRequest;
 import com.study.board_practice.dto.PostResponse;
+import com.study.board_practice.dto.PostUpdateRequest;
+import com.study.board_practice.exception.PostAccessDeniedException;
 import com.study.board_practice.exception.PostNotFoundException;
 import com.study.board_practice.exception.UserNotFoundException;
 import com.study.board_practice.service.PostService;
@@ -18,11 +20,11 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(PostController.class)
@@ -123,4 +125,72 @@ class PostControllerTest {
 
     }
 
+    @Test
+    void 글_수정_성공() throws Exception {
+        // given
+        // request
+        PostUpdateRequest request = new PostUpdateRequest();
+        request.setAuthorId(1);
+        request.setTitle("title1");
+        request.setContent("content1");
+
+        // response
+        PostResponse response = new PostResponse(
+                1, "name1", "title1",
+                "content1", LocalDateTime.now(), null);
+
+        when(postService.updatePost(eq(1), any(PostUpdateRequest.class)))
+                .thenReturn(response);
+
+        // when & then
+        // put 요청 및 값 검증
+        mockMvc.perform(put("/api/posts/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("title1"))
+                .andExpect(jsonPath("$.content").value("content1"));
+    }
+
+    @Test
+    void 글_수정_글_없음() throws Exception {
+        // given
+        PostUpdateRequest request = new PostUpdateRequest();
+        request.setAuthorId(1);
+        request.setTitle("title1");
+        request.setContent("content1");
+
+        // 파라미터 주의
+        // 인자 중 하나라도 any()를 쓰면 나머지도 matcher(eq)로 써야 함
+        // request는 Controller가 JSON으로 새로 만들기 때문에 any()로 받음
+        when(postService.updatePost(eq(1), any(PostUpdateRequest.class)))
+                .thenThrow(new PostNotFoundException());
+
+        // when & then
+        mockMvc.perform(put("/api/posts/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isNotFound())
+                .andExpect(content().string("존재하지 않는 글입니다."));
+    }
+
+    @Test
+    void 글_수정_작성자_불일치() throws Exception {
+        // given
+        PostUpdateRequest request = new PostUpdateRequest();
+        request.setAuthorId(1);
+        request.setTitle("title1");
+        request.setContent("content1");
+
+        when(postService.updatePost(eq(1), any(PostUpdateRequest.class)))
+                .thenThrow(new PostAccessDeniedException());
+
+        // when & then
+        mockMvc.perform(put("/api/posts/1")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isForbidden())
+                .andExpect(content().string("작성자만 수정할 수 있습니다."));
+
+    }
 }
