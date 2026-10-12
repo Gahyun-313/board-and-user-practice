@@ -19,6 +19,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.List;
 import java.util.Optional;
 
+import static java.util.Optional.empty;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -33,11 +34,13 @@ class PostServiceTest {
     @InjectMocks
     private PostService postService;
 
-    /** createPost 예외 */
+    /**
+     * createPost 예외
+     */
     @Test
     void 작성자가_없으면_예외() {
         // given - 작성자가 없다고 가정
-        when(userRepository.findById(1)).thenReturn(Optional.empty());
+        when(userRepository.findById(1)).thenReturn(empty());
 
         PostCreateRequest request = new PostCreateRequest();
         request.setAuthorId(1);
@@ -53,7 +56,9 @@ class PostServiceTest {
         verify(postRepository, never()).save(any(Post.class));
     }
 
-    /** createPost 성공 */
+    /**
+     * createPost 성공
+     */
     @Test
     void 작성자가_존재하면_저장() {
         // given (준비)
@@ -79,7 +84,9 @@ class PostServiceTest {
         verify(postRepository, times(1)).save(any(Post.class)); // save 1번 호출
     }
 
-    /** getPost 성공*/
+    /**
+     * getPost 성공
+     */
     @Test
     void 상세_조회_성공() {
         // given
@@ -100,18 +107,22 @@ class PostServiceTest {
         assertThat(result.getContent()).isEqualTo(post.getContent());
     }
 
-    /** getPost 예외 */
+    /**
+     * getPost 예외
+     */
     @Test
     void 글_없음_예외() {
         // given
-        when(postRepository.findById(1)).thenReturn(Optional.empty());
+        when(postRepository.findById(1)).thenReturn(empty());
 
         // when & then
         assertThatThrownBy(() -> postService.getPost(1))
                 .isInstanceOf(PostNotFoundException.class);
     }
 
-    /** getPosts 성공 */
+    /**
+     * getPosts 성공
+     */
     @Test
     void 목록_조회_성공() {
         // given
@@ -142,7 +153,9 @@ class PostServiceTest {
         assertThat(results.get(1).getContent()).isEqualTo(post2.getContent());
     }
 
-    /** getPosts 빈 목록 */
+    /**
+     * getPosts 빈 목록
+     */
     @Test
     void 글이_하나도_없을_때_빈_리스트_반환() {
         // given
@@ -155,7 +168,9 @@ class PostServiceTest {
         assertThat(results).isEmpty();
     }
 
-    /** updatePost 성공 */
+    /**
+     * updatePost 성공
+     */
     @Test
     void 글_수정_성공() {
         // given
@@ -192,12 +207,14 @@ class PostServiceTest {
         verify(postRepository, times(1)).flush();
     }
 
-    /** updatePost 글 없음 예외 */
+    /**
+     * updatePost 글 없음 예외
+     */
     @Test
     void 글_수정_글_없음_예외() {
         // given
         // 빈 값을 줘야 함
-        when(postRepository.findById(1)).thenReturn(Optional.empty());
+        when(postRepository.findById(1)).thenReturn(empty());
 
         PostUpdateRequest request = new PostUpdateRequest();
         request.setAuthorId(3);
@@ -210,7 +227,9 @@ class PostServiceTest {
                 .hasMessage("존재하지 않는 글입니다.");
     }
 
-    /** updatePost 작성자 불일치 예외 */
+    /**
+     * updatePost 작성자 불일치 예외
+     */
     @Test
     void 글_수정_작성자_불일치_예외() {
         // given
@@ -231,7 +250,7 @@ class PostServiceTest {
         // when & then
         assertThatThrownBy(() -> postService.updatePost(1, request))
                 .isInstanceOf(PostAccessDeniedException.class)
-                .hasMessage("작성자만 수정할 수 있습니다.");
+                .hasMessage("작성자만 수정/삭제할 수 있습니다.");
 
         // 권한 검사가 수정보다 먼저 실행됨을 검증
         verify(postRepository, never()).flush();
@@ -256,7 +275,7 @@ class PostServiceTest {
     @Test
     void 글_삭제_글_없음_예외() {
         // given
-        when(postRepository.findById(1)).thenReturn(Optional.empty());
+        when(postRepository.findById(1)).thenReturn(empty());
 
         // when & then
         assertThatThrownBy(() -> postService.deletePost(1, 1))
@@ -283,5 +302,54 @@ class PostServiceTest {
 
         // 삭제되지 않았음을 검증
         verify(postRepository, never()).delete(any(Post.class));
+    }
+
+    @Test
+    void 내가_쓴_글_조회_작성자_없음_예외() {
+        // given
+        when(userRepository.findById(1)).thenReturn(empty());
+
+        // when & then
+        assertThatThrownBy(() -> postService.getMyPosts(1))
+                .isInstanceOf(UserNotFoundException.class);
+
+        // findAllByAuthor 호출되지 않음 확인
+        verify(postRepository, never()).findAllByAuthor(any(User.class));
+    }
+
+    @Test
+    void 내가_쓴_글_조회_글_없으면_빈_리스트() {
+        // given
+        User user1 = mock(User.class);
+        when(userRepository.findById(1)).thenReturn(Optional.of(user1));
+        when(postRepository.findAllByAuthor(user1)).thenReturn(List.of()); // 빈 리스트 반환
+
+        // when
+        List<PostResponse> result = postService.getMyPosts(1);
+
+        // then - 빈 리스트 반환 확인
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void 내가_쓴_글_조회_성공() {
+        // given
+        User user1 = mock(User.class);
+        when(userRepository.findById(1)).thenReturn(Optional.of(user1));
+        when(user1.getNickname()).thenReturn("name of user1");
+
+        Post post1 = new Post(user1, "title1", "content1");
+        Post post2 = new Post(user1, "title2", "content2");
+        when(postRepository.findAllByAuthor(user1)).thenReturn(List.of(post1, post2));
+
+        // when
+        List<PostResponse> result = postService.getMyPosts(1);
+
+        // then
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).getTitle()).isEqualTo("title1");
+        assertThat(result.get(0).getAuthorNickname()).isEqualTo("name of user1");
+        assertThat(result.get(1).getTitle()).isEqualTo("title2");
+        assertThat(result.get(1).getAuthorNickname()).isEqualTo("name of user1");
     }
 }
