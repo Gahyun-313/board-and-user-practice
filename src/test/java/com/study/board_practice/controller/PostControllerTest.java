@@ -192,7 +192,7 @@ class PostControllerTest {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isForbidden())
-                .andExpect(content().string("작성자만 수정할 수 있습니다."));
+                .andExpect(content().string("작성자만 수정/삭제할 수 있습니다."));
 
     }
 
