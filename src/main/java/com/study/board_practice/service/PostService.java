@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
 
 /** 글 게시 로직 서비스 */
@@ -101,4 +102,18 @@ public class PostService {
     }
 
     // 내가 쓴 글 조회
+    @Transactional(readOnly = true)
+    public List<PostResponse> getMyPosts(int authorId) {
+        // authorId로 User 조회
+        User user = userRepository.findById(authorId)
+                .orElseThrow(UserNotFoundException::new);
+
+        // 해당 User가 쓴 글 전체 조회
+        List<Post> postList = postRepository.findAllByAuthor(user);
+
+        // List<Post> -> List<PostResponse> 변환 및 반환
+        return postList.stream()
+                .map(post -> PostResponse.from(post))
+                .toList();
+    }
 }
