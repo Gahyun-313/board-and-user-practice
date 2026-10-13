@@ -21,12 +21,7 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(PostController.class)
@@ -232,5 +227,48 @@ class PostControllerTest {
                 .andExpect(status().isForbidden())
                 .andExpect(content().string("작성자만 수정/삭제할 수 있습니다."));
 
+    }
+
+    @Test
+    void 내가_쓴_글_조회_작성자_없음() throws Exception {
+        // given
+        doThrow(new UserNotFoundException())
+                .when(postService).getMyPosts(999);
+
+        // when & then
+        // GET /api/users/posts?authorId=999 -> 404
+        mockMvc.perform(get("/api/users/posts").param("authorId", "999"))
+                .andExpect(status().isNotFound())
+                .andExpect(content().string("존재하지 않는 유저입니다."));
+    }
+
+    @Test
+    void 내가_쓴_글_조회_글_없으면_빈_리스트() throws Exception {
+        // given
+        when(postService.getMyPosts(1)).thenReturn(List.of());
+
+        // when & then
+        // 200 확인 + 배열 길이 0 확인
+        mockMvc.perform(get("/api/users/posts").param("authorId", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void 내가_쓴_글_조회_성공() throws Exception {
+        // given
+        PostResponse response1 = new PostResponse(1, "nickname1", "title1", "content1", LocalDateTime.now(), null);
+        PostResponse response2 = new PostResponse(2, "nickname1", "title2", "content2", LocalDateTime.now(), null);
+
+        when(postService.getMyPosts(999)).thenReturn(List.of(response1, response2));
+
+        // when & then
+        mockMvc.perform(get("/api/users/posts").param("authorId", "999"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].title").value("title1"));
+
+        // verify -> authorId가 그대로 넘어갔는지 확인
+        verify(postService, times(1)).getMyPosts(999);
     }
 }
