@@ -13,10 +13,9 @@ public class Post {
     @GeneratedValue(strategy = GenerationType.IDENTITY) // 자동 증가
     private int id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    // ManyToOne -> N:1 관계 (글 N : 작성자 1)
-    // fetch = LAZY -> 글을 조회할 때 작성자를 바로 가져오지 않고, 실제로 쓸 때 가져옴. Transactional, dirty checking(변경감지)과 연관.
-    @JoinColumn(name = "author_userId")
+    @ManyToOne(fetch = FetchType.LAZY) // N:1 관계 (글 N : 작성자 1)
+    // fetch = LAZY -> 작성자를 실제로 쓸 때 조회. 그 시점에 트랜잭션 안이어야 함.
+    @JoinColumn(name = "author_id")
     private User author;
 
     private String title;
@@ -36,7 +35,7 @@ public class Post {
         this.content = content;
     }
 
-    public Post() {     }
+    protected Post() {     }
 
     // 메서드
     public void update(String title, String content) {
