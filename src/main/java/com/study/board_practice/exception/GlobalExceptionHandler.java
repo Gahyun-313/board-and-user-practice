@@ -8,6 +8,9 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice // 앱 전체의 Controller들을 감시하면서 예외가 터지면 가로채서 대신 응답을 만들어주는 클래스
 public class GlobalExceptionHandler {
 
+    // ------------------------------------------------
+    // 로그인
+    // ------------------------------------------------
     /** 409 (Conflict) - 존재하는 아이디 */
     @ExceptionHandler(DuplicateUserException.class)
     public ResponseEntity<String> handleDuplicateUser(DuplicateUserException e) {
@@ -29,6 +32,9 @@ public class GlobalExceptionHandler {
                 .body(e.getMessage());
     }
 
+    // ------------------------------------------------
+    // Post
+    // ------------------------------------------------
     /** 404 (Not Found) - 존재하지 않는 글 */
     @ExceptionHandler(PostNotFoundException.class)
     public ResponseEntity<String> handlePostNotFound(PostNotFoundException e) {
@@ -43,4 +49,20 @@ public class GlobalExceptionHandler {
                 .body(e.getMessage());
     }
 
+    // ------------------------------------------------
+    // Comment
+    // ------------------------------------------------
+    /** 404 (Not Found) - 존재하지 않는 댓글 */
+    @ExceptionHandler(CommentNotFoundException.class)
+    public ResponseEntity<String> handleCommentNotFound(CommentNotFoundException e) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(e.getMessage());
+    }
+
+    /** 403 - 댓글 작성자만 수정할 수 있음 */
+    @ExceptionHandler(CommentAccessDeniedException.class)
+    public ResponseEntity<String> handleCommentAccessDenied(CommentAccessDeniedException e) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(e.getMessage());
+    }
 }
