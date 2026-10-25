@@ -34,9 +34,9 @@ class PostServiceTest {
     @InjectMocks
     private PostService postService;
 
-    /**
-     * createPost 예외
-     */
+    // ----------------------------------------------------------------
+    // createPost
+    // ----------------------------------------------------------------
     @Test
     void 작성자가_없으면_예외() {
         // given - 작성자가 없다고 가정
@@ -56,9 +56,6 @@ class PostServiceTest {
         verify(postRepository, never()).save(any(Post.class));
     }
 
-    /**
-     * createPost 성공
-     */
     @Test
     void 작성자가_존재하면_저장() {
         // given (준비)
@@ -84,9 +81,9 @@ class PostServiceTest {
         verify(postRepository, times(1)).save(any(Post.class)); // save 1번 호출
     }
 
-    /**
-     * getPost 성공
-     */
+    // ----------------------------------------------------------------
+    // getPost
+    // ----------------------------------------------------------------
     @Test
     void 상세_조회_성공() {
         // given
@@ -107,9 +104,6 @@ class PostServiceTest {
         assertThat(result.getContent()).isEqualTo(post.getContent());
     }
 
-    /**
-     * getPost 예외
-     */
     @Test
     void 글_없음_예외() {
         // given
@@ -120,9 +114,10 @@ class PostServiceTest {
                 .isInstanceOf(PostNotFoundException.class);
     }
 
-    /**
-     * getPosts 성공
-     */
+    // ----------------------------------------------------------------
+    // getPosts
+    // ----------------------------------------------------------------
+
     @Test
     void 목록_조회_성공() {
         // given
@@ -153,9 +148,6 @@ class PostServiceTest {
         assertThat(results.get(1).getContent()).isEqualTo(post2.getContent());
     }
 
-    /**
-     * getPosts 빈 목록
-     */
     @Test
     void 글이_하나도_없을_때_빈_리스트_반환() {
         // given
@@ -168,9 +160,10 @@ class PostServiceTest {
         assertThat(results).isEmpty();
     }
 
-    /**
-     * updatePost 성공
-     */
+    // ----------------------------------------------------------------
+    // updatePost
+    // ----------------------------------------------------------------
+
     @Test
     void 글_수정_성공() {
         // given
@@ -207,9 +200,6 @@ class PostServiceTest {
         verify(postRepository, times(1)).flush();
     }
 
-    /**
-     * updatePost 글 없음 예외
-     */
     @Test
     void 글_수정_글_없음_예외() {
         // given
@@ -227,9 +217,6 @@ class PostServiceTest {
                 .hasMessage("존재하지 않는 글입니다.");
     }
 
-    /**
-     * updatePost 작성자 불일치 예외
-     */
     @Test
     void 글_수정_작성자_불일치_예외() {
         // given
@@ -255,6 +242,10 @@ class PostServiceTest {
         // 권한 검사가 수정보다 먼저 실행됨을 검증
         verify(postRepository, never()).flush();
     }
+
+    // ----------------------------------------------------------------
+    // deletePost
+    // ----------------------------------------------------------------
 
     @Test
     void 글_삭제_성공() {
@@ -304,6 +295,9 @@ class PostServiceTest {
         verify(postRepository, never()).delete(any(Post.class));
     }
 
+    // ----------------------------------------------------------------
+    // getMyPosts
+    // ----------------------------------------------------------------
     @Test
     void 내가_쓴_글_조회_작성자_없음_예외() {
         // given

@@ -14,7 +14,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Optional;
 
 
 /** 글 게시 로직 서비스 */
@@ -83,6 +82,9 @@ public class PostService {
         // flush - @PreUpdate(updatedAt 세팅)는 flush 때 실행되므로 응답 만들기 전에 먼저 flush함
         postRepository.flush();
 
+        // 생성 시에는 id를 돌려주는데, 수정 시에는 본문(response)을 돌려주는 이유.
+        // 생성 시에는 생성됐음을 알려com주기 위해 id로 충분 (id가 생겼다는 건 글이 생성됐다는 것이므로.)
+        // 수정 시에는 클라이언트 화면을 바로 갱신해야하므로 response까지 같이 반환.
         return PostResponse.from(post);
     }
 

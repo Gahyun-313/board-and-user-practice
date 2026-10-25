@@ -1,6 +1,5 @@
 package com.study.board_practice.controller;
 
-import com.study.board_practice.domain.Post;
 import com.study.board_practice.dto.PostCreateRequest;
 import com.study.board_practice.dto.PostResponse;
 import com.study.board_practice.dto.PostUpdateRequest;
@@ -41,7 +40,8 @@ public class PostController {
 
     // 글 상세 조회
     @GetMapping("/api/posts/{id}")
-    public ResponseEntity<PostResponse> getPost(@PathVariable int id) {
+    public ResponseEntity<PostResponse> getPost(
+            @PathVariable int id) {
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(postService.getPost(id));
@@ -69,7 +69,8 @@ public class PostController {
     // 내가 쓴 글 조회
     // 임시 인증 -> authorId를 쿼리 파라미터로 받음 (추후 JWT 적용 시 제거)
     @GetMapping("/api/users/posts")
-    public ResponseEntity<List<PostResponse>> getMyPosts(@RequestParam int authorId) {
+    public ResponseEntity<List<PostResponse>> getMyPosts(
+            @RequestParam int authorId) {
         // @RequestParam 을 쓴 이유
         // @RequestParam이 있으면 필수 파라미터로 취급해 빠질 경우 400 Bad Request로 처리(클라이언트 잘못)
         // @RequestParam이 없으면 선택 파라미터로 취급하고, 없을 경우 null로 받는다. 이 null을 int에 못 넣으므로 500 에러가 발생(서버 잘못)
