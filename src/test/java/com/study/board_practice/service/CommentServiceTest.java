@@ -126,7 +126,7 @@ class CommentServiceTest {
         when(postRepository.findById(postId)).thenReturn(Optional.empty());
 
         // when & then
-        assertThatThrownBy(() -> commentService.getComments(3))
+        assertThatThrownBy(() -> commentService.getComments(postId))
                 .isInstanceOf(PostNotFoundException.class);
     }
 
@@ -166,11 +166,12 @@ class CommentServiceTest {
     void 댓글목록조회_성공_빈_리스트() {
         // given
         // 댓글이 없다고 가정
+        int postId = 3;
         Post post = mock(Post.class);
-        when(postRepository.findById(3)).thenReturn(Optional.of(post));
+        when(postRepository.findById(postId)).thenReturn(Optional.of(post));
 
         // when
-        List<CommentResponse> results = commentService.getComments(3);
+        List<CommentResponse> results = commentService.getComments(postId);
 
         // then
         // 응답 배열 길이가 0인지 확인
@@ -220,7 +221,7 @@ class CommentServiceTest {
     void 댓글수정_실패_댓글_없으면_예외() {
         // given
         int commentId = 3;
-        // 댓글이 없다고 가정;
+        // 댓글이 없다고 가정
         when(commentRepository.findById(commentId)).thenReturn(Optional.empty());
 
         CommentUpdateRequest request = new CommentUpdateRequest();
@@ -237,11 +238,10 @@ class CommentServiceTest {
         // given
         int commentId = 3;
         // 댓글은 있지만 작성자 id와 authorId가 다르다고 가정
-        Comment comment = mock(Comment.class);
         User author = mock(User.class);
+        Comment comment = new Comment(mock(Post.class), author, "content");
 
         when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
-        when(comment.getAuthor()).thenReturn(author);
         when(author.getId()).thenReturn(55);
 
         CommentUpdateRequest request = new CommentUpdateRequest();
@@ -252,6 +252,9 @@ class CommentServiceTest {
         assertThatThrownBy(() -> commentService.updateComment(commentId, request))
                 .isInstanceOf(CommentAccessDeniedException.class)
                 .hasMessageContaining("댓글 작성자만 수정/삭제할 수 있습니다.");
+        // 예외 후 상태 확인
+        assertThat(comment.getContent()).isEqualTo("content");   // 내용 안 바뀜
+        verify(commentRepository, never()).flush();              // flush 안 함
     }
 
     @Test
@@ -260,25 +263,23 @@ class CommentServiceTest {
         int commentId = 3;
         int authorId = 55;
         // 댓글이 있고 작성자 id와 authorId가 같다고 가정
-        Comment comment = mock(Comment.class);
         User author = mock(User.class);
+        Comment comment = new Comment(mock(Post.class), author, "content");
 
         when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
-        when(comment.getAuthor()).thenReturn(author);
         when(author.getId()).thenReturn(authorId);
         when(author.getNickname()).thenReturn("nickname1");
 
-        // when
         CommentUpdateRequest request = new CommentUpdateRequest();
         request.setAuthorId(authorId);
         request.setContent("update content");
 
+        // when
         CommentResponse result = commentService.updateComment(commentId, request);
 
         // then
         assertThat(result.getAuthorNickname()).isEqualTo("nickname1");
-        // update 호출 여부 verify
-        verify(comment).update("update content");
+        assertThat(result.getContent()).isEqualTo("update content");
         verify(commentRepository, times(1)).flush();
     }
 
@@ -303,12 +304,12 @@ class CommentServiceTest {
         // given
         int commentId = 3;
         int authorId = 55;
+
         // 댓글은 있지만 작성자 id와 authorId가 다르다고 가정
-        Comment comment = mock(Comment.class);
         User author = mock(User.class);
+        Comment comment = new Comment(mock(Post.class), author, "content");
 
         when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
-        when(comment.getAuthor()).thenReturn(author);
         when(author.getId()).thenReturn(authorId);
 
         // when & then
@@ -324,11 +325,10 @@ class CommentServiceTest {
         int authorId = 55;
 
         // 댓글이 있고 작성자 id와 authorId가 같다고 가정
-        Comment comment = mock(Comment.class);
         User author = mock(User.class);
+        Comment comment = new Comment(mock(Post.class), author, "content");
 
         when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
-        when(comment.getAuthor()).thenReturn(author);
         when(author.getId()).thenReturn(authorId);
 
         // when

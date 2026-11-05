@@ -6,7 +6,9 @@ import com.study.board_practice.domain.User;
 import com.study.board_practice.dto.CommentCreateRequest;
 import com.study.board_practice.dto.CommentResponse;
 import com.study.board_practice.dto.CommentUpdateRequest;
-import com.study.board_practice.exception.*;
+import com.study.board_practice.exception.CommentNotFoundException;
+import com.study.board_practice.exception.PostNotFoundException;
+import com.study.board_practice.exception.UserNotFoundException;
 import com.study.board_practice.repository.CommentRepository;
 import com.study.board_practice.repository.PostRepository;
 import com.study.board_practice.repository.UserRepository;
@@ -85,9 +87,7 @@ public class CommentService {
                 .orElseThrow(CommentNotFoundException::new);
 
         // 본인 확인
-        if (comment.getAuthor().getId() != request.getAuthorId()) {
-            throw new CommentAccessDeniedException();
-        }
+        comment.validateAuthor(request.getAuthorId());
 
         // 댓글 수정 및 flush
         comment.update(request.getContent());
@@ -108,9 +108,7 @@ public class CommentService {
                 .orElseThrow(CommentNotFoundException::new);
 
         // 본인 확인
-        if (comment.getAuthor().getId() != authorId) {
-            throw new CommentAccessDeniedException();
-        }
+        comment.validateAuthor(authorId);
 
         // 댓글 삭제
         commentRepository.delete(comment);

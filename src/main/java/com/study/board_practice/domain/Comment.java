@@ -1,5 +1,6 @@
 package com.study.board_practice.domain;
 
+import com.study.board_practice.exception.CommentAccessDeniedException;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
@@ -40,9 +41,15 @@ public class Comment {
 
     protected Comment() { }
 
-    // 메서드
+    // 댓글 수정 메서드
     public void update(String content) {
         this.content = content;
+    }
+    // 댓글 작성자 본인 확인 메서드 (다르면 CommentAccessDeniedException)
+    public void validateAuthor(int authorId) {
+        if (this.author.getId() != authorId) {
+            throw new CommentAccessDeniedException();
+        }
     }
 
     public int getId() {return id;}

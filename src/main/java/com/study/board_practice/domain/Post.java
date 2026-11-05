@@ -1,5 +1,6 @@
 package com.study.board_practice.domain;
 
+import com.study.board_practice.exception.PostAccessDeniedException;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
@@ -37,10 +38,16 @@ public class Post {
 
     protected Post() {     }
 
-    // 메서드
+    // 글 수정 메서드
     public void update(String title, String content) {
         this.title = title;
         this.content = content;
+    }
+    // 작성자 본인 확인 메서드 (다르면 PostAccessDeniedException)
+    public void validateAuthor(int authorId) {
+        if (author.getId() != authorId) {
+            throw new PostAccessDeniedException();
+        }
     }
 
     public int getId() {return id;}

@@ -36,3 +36,6 @@ out/
 
 ### VS Code ###
 .vscode/
+
+# Claude 출력물
+/claude-outputs/

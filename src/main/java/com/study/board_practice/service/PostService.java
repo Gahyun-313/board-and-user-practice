@@ -5,7 +5,6 @@ import com.study.board_practice.domain.User;
 import com.study.board_practice.dto.PostCreateRequest;
 import com.study.board_practice.dto.PostResponse;
 import com.study.board_practice.dto.PostUpdateRequest;
-import com.study.board_practice.exception.PostAccessDeniedException;
 import com.study.board_practice.exception.PostNotFoundException;
 import com.study.board_practice.exception.UserNotFoundException;
 import com.study.board_practice.repository.PostRepository;
@@ -73,17 +72,15 @@ public class PostService {
         Post post = postRepository.findById(id)
                 .orElseThrow(PostNotFoundException::new);
 
-        // 작성자 id와 요청자의 id 비교 -> 다르면 PostAccessDeniedException
-        if (post.getAuthor().getId() != request.getAuthorId()) {
-            throw new PostAccessDeniedException();
-        }
+        // 본인 확인
+        post.validateAuthor(request.getAuthorId());
 
         post.update(request.getTitle(), request.getContent());
         // flush - @PreUpdate(updatedAt 세팅)는 flush 때 실행되므로 응답 만들기 전에 먼저 flush함
         postRepository.flush();
 
         // 생성 시에는 id를 돌려주는데, 수정 시에는 본문(response)을 돌려주는 이유.
-        // 생성 시에는 생성됐음을 알려com주기 위해 id로 충분 (id가 생겼다는 건 글이 생성됐다는 것이므로.)
+        // 생성 시에는 생성됐음을 알려주기 위해 id로 충분 (id가 생겼다는 건 글이 생성됐다는 것이므로.)
         // 수정 시에는 클라이언트 화면을 바로 갱신해야하므로 response까지 같이 반환.
         return PostResponse.from(post);
     }
@@ -95,10 +92,8 @@ public class PostService {
         Post post = postRepository.findById(id)
                 .orElseThrow(PostNotFoundException::new);
 
-        // 작성자 id와 요청자 id 비교
-        if (post.getAuthor().getId() != authorId) {
-            throw new PostAccessDeniedException();
-        }
+        // 본인 확인
+        post.validateAuthor(authorId);
 
         postRepository.delete(post);
     }

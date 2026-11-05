@@ -231,9 +231,6 @@ class PostServiceTest {
         request.setTitle("Title3");
         request.setContent("Content3");
 
-        // 진짜 Service가 알아서 예외를 던져주므로 예외를 따로 심어주지 않아도 됨
-        //when(postService.updatePost(1, request)).thenThrow(PostAccessDeniedException.class);
-
         // when & then
         assertThatThrownBy(() -> postService.updatePost(1, request))
                 .isInstanceOf(PostAccessDeniedException.class)
