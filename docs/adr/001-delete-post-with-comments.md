@@ -82,4 +82,88 @@ posts                     comments
     - 삭제된 데이터를 나중에 복구하거나 확인할 수 있다.
 - [ 감수하는 점 ]
     - 글 목록, 상세, 내가 쓴 글 등 조회마다 "삭제되지 않은 글"인지 확인하는 조건이 필요하다.
+    - 삭제 시각을 updatedAt으로 대신하므로, 삭제 시각만 따로 다뤄야 하는 요구가 생기면 deletedAt 필드 도입을 다시 검토한다.
 
+
+---
+### 📋 삭제된 글 처리 정책
+
+삭제된 글은 "없는 글"처럼 다루되, id로 직접 접근하면 410 Gone으로 "삭제된 글입니다."를 안내한다.
+
+| 대상 | 삭제된 글일 때 | 비고 |
+|---|---|---|
+| 글 목록 | 제외 | |
+| 내가 쓴 글 | 제외 | |
+| 글 상세 | 410 | |
+| 글 수정 / 삭제 | 410 | 작성자가 아니면 403이 먼저 |
+| 새 댓글 작성 | 410 | |
+| 댓글 목록 조회 | 410 | |
+| 댓글 단건 조회 | 가능 | "내가 쓴 댓글 목록"에서 삭제된 글의 댓글을 눌렀을 때 대응 |
+| 댓글 수정 | 410 | 글이 삭제됐는데 댓글만 고치는 것은 어색함 |
+| 댓글 삭제 | 가능 | 내 기록은 내가 지울 수 있어야 함 |
+ 
+---
+### 🛠️ 설계
+
+**Post 엔티티**
+
+| 항목 | 내용 |
+|---|---|
+| 필드 | `boolean deleted` (기본값 false) |
+| `markDeleted()` | 삭제 상태로 표시 (실제 DELETE 아님) |
+| `validateNotDeleted()` | 삭제된 글이면 `PostDeletedException` |
+| `isDeleted()` | 삭제 여부 반환 |
+
+**예외**
+
+| 예외 | 메시지 | 상태 코드 |
+|---|---|---|
+| `PostDeletedException` | 삭제된 글입니다. | 410 GONE |
+
+**PostRepository**
+
+| 용도 | 메서드 |
+|---|---|
+| 글 목록 | `findAllByDeletedFalse()` |
+| 내가 쓴 글 | `findAllByAuthorAndDeletedFalse(User author)` |
+
+**Service 흐름**
+
+| 메서드 | 변경 |
+|---|---|
+| `getPosts` | `findAll()` -> `findAllByDeletedFalse()` |
+| `getPost` | `post.validateNotDeleted()` |
+| `updatePost` | `post.validateAuthor()` -> `post.validateNotDeleted()` -> 수정 |
+| `deletePost` | `post.validateAuthor()` -> `post.validateNotDeleted()` -> `post.markDeleted()` |
+| `getMyPosts` | `findAllByAuthor()` -> `findAllByAuthorAndDeletedFalse()` |
+| `createComment` | `post.validateNotDeleted()` |
+| `getComments` | `post.validateNotDeleted()` |
+| `getComment` | 변경 없음 |
+| `updateComment` | `comment.validateAuthor()` -> `comment.getPost().validateNotDeleted()` |
+| `deleteComment` | 변경 없음 (댓글은 실제 DELETE) |
+ 
+---
+### 🤔 세부 결정
+
+- [ 상태 코드: 404 대신 410 ]
+    - 삭제된 리소스는 404로 처리하는 경우가 가장 흔하다. 단순하고 삭제 사실도 숨길 수 있다.
+    - 410 Gone은 "있었지만 삭제됨"을 정확히 표현한다. 화면에서 "삭제된 글입니다."를 안내하기 좋아 410을 선택했다.
+    - 상세만 410이고 나머지가 404면 같은 글이 API마다 다르게 보이므로, "삭제된 글을 id로 직접 건드리면 410"으로 통일했다.
+
+
+- [ 검사 순서: 권한 확인 먼저 ]
+    - 본인만 가능한 API(글 수정/삭제, 댓글 수정)는 권한 확인 -> 삭제 확인 순서로 검사한다.
+    - 권한이 없는 사람은 시도 자체가 불가능해야 한다고 판단했다.
+    - 결과: 남이 삭제된 글을 삭제하면 403, 작성자가 삭제된 글을 다시 삭제하면 410.
+
+
+- [ 필드: `boolean deleted` vs `LocalDateTime deletedAt` ]
+    - `deletedAt` 하나로 삭제 여부와 삭제 시각을 함께 표현할 수 있다.
+    - 하지만 삭제 시 dirty checking으로 `@PreUpdate`가 실행되어 `updatedAt`에 삭제 시각이 남고, 삭제 후에는 수정이 막혀 값이 바뀌지 않는다.
+    - 연습 범위에서는 이것으로 충분하다고 보고 더 단순한 `boolean deleted`를 선택했다.
+
+
+- [ 검사 위치: 엔티티 메서드 ]
+    - "이 글이 삭제됐는가?"는 Post 자신의 데이터만으로 답할 수 있는 질문이므로, 작성자 확인(`validateAuthor`)과 같은 방식으로 엔티티에 두었다.
+    - 글 한 개를 다룰 때는 엔티티에 묻고(`validateNotDeleted`), 목록을 다룰 때는 처음부터 삭제되지 않은 글만 조회한다(`findAllByDeletedFalse`).
+    - 댓글은 soft delete 대상이 아니다. 댓글을 가리키는 테이블이 없어 외래키 문제가 없으므로 지금처럼 실제로 DELETE 한다.
