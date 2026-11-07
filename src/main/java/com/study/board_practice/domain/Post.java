@@ -1,6 +1,7 @@
 package com.study.board_practice.domain;
 
 import com.study.board_practice.exception.PostAccessDeniedException;
+import com.study.board_practice.exception.PostDeletedException;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
@@ -23,6 +24,7 @@ public class Post {
     private String content;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private boolean deleted = false;    // 삭제 여부
 
     @PrePersist
     void onCreate() { this.createdAt = LocalDateTime.now(); }
@@ -49,6 +51,17 @@ public class Post {
             throw new PostAccessDeniedException();
         }
     }
+    // 삭제된 글이면 PostDeletedException
+    public void validateNotDeleted() {
+        // 삭제된 상태인지 확인 후 삭제됐으면 예외.
+        if (deleted) {
+            throw new PostDeletedException();
+        }
+    }
+    // 삭제 상태로 표시 (실제 DELETE 아님. soft delete)
+    public void markDeleted() {
+        this.deleted = true;
+    }
 
     public int getId() {return id;}
     public User getAuthor() {return author;}
@@ -56,4 +69,5 @@ public class Post {
     public String getContent() {return content;}
     public LocalDateTime getCreatedAt() {return createdAt;}
     public LocalDateTime getUpdatedAt() {return updatedAt;}
+    public boolean isDeleted() {return deleted;}
 }
