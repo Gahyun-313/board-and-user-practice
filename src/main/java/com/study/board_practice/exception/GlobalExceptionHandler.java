@@ -42,10 +42,17 @@ public class GlobalExceptionHandler {
                 .body(e.getMessage());
     }
 
-    /** 403 - 작성자만 수정할 수 있음 */
+    /** 403 - 작성자만 수정/삭제할 수 있음 */
     @ExceptionHandler(PostAccessDeniedException.class)
     public ResponseEntity<String> handlePostAccessDenied(PostAccessDeniedException e) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(e.getMessage());
+    }
+
+    /** 410 (Gone) - 삭제된 글 */
+    @ExceptionHandler(PostDeletedException.class)
+    public ResponseEntity<String> handlePostDeleted(PostDeletedException e) {
+        return ResponseEntity.status(HttpStatus.GONE)
                 .body(e.getMessage());
     }
 

@@ -6,6 +6,7 @@ import com.study.board_practice.dto.PostCreateRequest;
 import com.study.board_practice.dto.PostResponse;
 import com.study.board_practice.dto.PostUpdateRequest;
 import com.study.board_practice.exception.PostAccessDeniedException;
+import com.study.board_practice.exception.PostDeletedException;
 import com.study.board_practice.exception.PostNotFoundException;
 import com.study.board_practice.exception.UserNotFoundException;
 import com.study.board_practice.repository.PostRepository;
@@ -60,7 +61,7 @@ class PostServiceTest {
     void 작성자가_존재하면_저장() {
         // given (준비)
         // 작성자가 존재한다고 가정
-        User author = new User("gahyun", "pw1234", "가현");
+        User author = new User("userId", "pw1234", "nickname");
         when(userRepository.findById(1)).thenReturn(Optional.of(author));
 
         // save가 id=10인 글을 돌려준다고 가정
@@ -107,11 +108,30 @@ class PostServiceTest {
     @Test
     void 글_없음_예외() {
         // given
-        when(postRepository.findById(1)).thenReturn(empty());
+        int postId = 3;
+        when(postRepository.findById(postId)).thenReturn(empty());
 
         // when & then
-        assertThatThrownBy(() -> postService.getPost(1))
-                .isInstanceOf(PostNotFoundException.class);
+        assertThatThrownBy(() -> postService.getPost(postId))
+                .isInstanceOf(PostNotFoundException.class)
+                .hasMessageContaining("존재하지 않는 글입니다.");
+    }
+
+    @Test
+    void 글_상세_조회_삭제된_글_예외() {
+        // given
+        // post 생성
+        int postId = 1;
+        Post post = new Post(mock(User.class), "title", "content");
+        // 삭제된 상태로 만들기
+        post.markDeleted();
+        // post 에 id 연결
+        when(postRepository.findById(postId)).thenReturn(Optional.of(post));
+
+        // when & then
+        assertThatThrownBy(() -> postService.getPost(postId))
+                .isInstanceOf(PostDeletedException.class)
+                .hasMessageContaining("삭제된 글입니다.");
     }
 
     // ----------------------------------------------------------------
@@ -126,7 +146,7 @@ class PostServiceTest {
         Post post1 = new Post(user1, "title1", "content1");
         Post post2 = new Post(user2, "title2", "content2");
 
-        when(postRepository.findAll()).thenReturn(List.of(post1, post2));
+        when(postRepository.findAllByDeletedFalse()).thenReturn(List.of(post1, post2));
 
         // when
         List<PostResponse> results = postService.getPosts();
@@ -151,7 +171,7 @@ class PostServiceTest {
     @Test
     void 글이_하나도_없을_때_빈_리스트_반환() {
         // given
-        when(postRepository.findAll()).thenReturn(List.of());
+        when(postRepository.findAllByDeletedFalse()).thenReturn(List.of());
 
         // when
         List<PostResponse> results = postService.getPosts();
@@ -220,24 +240,54 @@ class PostServiceTest {
     @Test
     void 글_수정_작성자_불일치_예외() {
         // given
+        int userId = 1;
+        int requestUserId = 3;
+        int postId = 44;
         User user1 = mock(User.class);
-        when(user1.getId()).thenReturn(1);
+        when(user1.getId()).thenReturn(userId);
 
         Post post = new Post(user1, "title1", "content1");
-        when(postRepository.findById(1)).thenReturn(Optional.of(post));
+        when(postRepository.findById(postId)).thenReturn(Optional.of(post));
 
         PostUpdateRequest request = new PostUpdateRequest();
-        request.setAuthorId(3);
+        request.setAuthorId(requestUserId);
         request.setTitle("Title3");
         request.setContent("Content3");
 
         // when & then
-        assertThatThrownBy(() -> postService.updatePost(1, request))
+        assertThatThrownBy(() -> postService.updatePost(postId, request))
                 .isInstanceOf(PostAccessDeniedException.class)
                 .hasMessage("작성자만 수정/삭제할 수 있습니다.");
 
         // 권한 검사가 수정보다 먼저 실행됨을 검증
         verify(postRepository, never()).flush();
+    }
+
+    @Test
+    void 글_수정_삭제된_글_예외() {
+        // given
+        int userId = 1;
+        int postId = 33;
+        User user = mock(User.class);
+        when(user.getId()).thenReturn(userId);
+
+        Post post = new Post(user, "title1", "content1");
+        when(postRepository.findById(postId)).thenReturn(Optional.of(post));
+
+        PostUpdateRequest request = new PostUpdateRequest();
+        request.setAuthorId(userId);
+        request.setTitle("Title3");
+        request.setContent("Content3");
+
+        post.markDeleted(); // 해당 글 삭제 처리
+        assertThat(post.isDeleted()).isTrue(); // 삭제됐는지 확인
+
+        // when & then
+        assertThatThrownBy(() -> postService.updatePost(postId, request))
+                .isInstanceOf(PostDeletedException.class)
+                .hasMessageContaining("삭제된 글입니다.");
+        
+        verify(postRepository, never()).flush(); // 수정 전에 막혔는지 확인
     }
 
     // ----------------------------------------------------------------
@@ -257,7 +307,7 @@ class PostServiceTest {
         postService.deletePost(1, 1);
 
         // then
-        verify(postRepository, times(1)).delete(post);
+        assertThat(post.isDeleted()).isTrue();
     }
 
     @Test
@@ -269,27 +319,65 @@ class PostServiceTest {
         assertThatThrownBy(() -> postService.deletePost(1, 1))
                 .isInstanceOf(PostNotFoundException.class)
                 .hasMessage("존재하지 않는 글입니다.");
-
-        // 삭제되지 않았음을 검증
-        verify(postRepository, never()).delete(any(Post.class));
     }
 
     @Test
     void 글_삭제_작성자_불일치_예외() {
         // given
+        int rightUserId = 1;
+        int wrongUserId = 2;
         User user1 = mock(User.class);
-        when(user1.getId()).thenReturn(1);
+        when(user1.getId()).thenReturn(rightUserId);
 
         Post post = new Post(user1, "title1", "content1");
         when(postRepository.findById(1)).thenReturn(Optional.of(post));
 
         // when & then
-        assertThatThrownBy(() -> postService.deletePost(1, 2))
+        assertThatThrownBy(() -> postService.deletePost(1, wrongUserId))
                 .isInstanceOf(PostAccessDeniedException.class)
                 .hasMessage("작성자만 수정/삭제할 수 있습니다.");
 
         // 삭제되지 않았음을 검증
-        verify(postRepository, never()).delete(any(Post.class));
+        assertThat(post.isDeleted()).isFalse();
+    }
+
+    @Test
+    void 글_삭제_이미_삭제된_글_예외_작성자가_시도() {
+        // given
+        int rightUserId = 1;
+        User user1 = mock(User.class);
+        when(user1.getId()).thenReturn(rightUserId);
+
+        Post post = new Post(user1, "title1", "content1");
+        when(postRepository.findById(1)).thenReturn(Optional.of(post));
+        
+        post.markDeleted(); // 해당 글 삭제 처리
+        assertThat(post.isDeleted()).isTrue(); // 삭제됐는지 확인
+
+        // when & then
+        assertThatThrownBy(() -> postService.deletePost(1, rightUserId))
+                .isInstanceOf(PostDeletedException.class)
+                .hasMessageContaining("삭제된 글입니다.");
+    }
+
+    @Test
+    void 글_삭제_이미_삭제된_글_예외_다른_사람이_시도() {
+        // given
+        int rightUserId = 1;
+        int wrongUserId = 2;
+        User user1 = mock(User.class);
+        when(user1.getId()).thenReturn(rightUserId);
+
+        Post post = new Post(user1, "title1", "content1");
+        when(postRepository.findById(1)).thenReturn(Optional.of(post));
+
+        post.markDeleted(); // 해당 글 삭제 처리
+        assertThat(post.isDeleted()).isTrue(); // 삭제됐는지 확인
+
+        // when & then
+        assertThatThrownBy(() -> postService.deletePost(1, wrongUserId))
+                .isInstanceOf(PostAccessDeniedException.class)
+                .hasMessageContaining("작성자만 수정/삭제할 수 있습니다.");
     }
 
     // ----------------------------------------------------------------
@@ -304,8 +392,8 @@ class PostServiceTest {
         assertThatThrownBy(() -> postService.getMyPosts(1))
                 .isInstanceOf(UserNotFoundException.class);
 
-        // findAllByAuthor 호출되지 않음 확인
-        verify(postRepository, never()).findAllByAuthor(any(User.class));
+        // 글 목록 조회가 호출되지 않음 확인
+        verify(postRepository, never()).findAllByAuthorAndDeletedFalse(any(User.class));
     }
 
     @Test
@@ -313,7 +401,7 @@ class PostServiceTest {
         // given
         User user1 = mock(User.class);
         when(userRepository.findById(1)).thenReturn(Optional.of(user1));
-        when(postRepository.findAllByAuthor(user1)).thenReturn(List.of()); // 빈 리스트 반환
+        when(postRepository.findAllByAuthorAndDeletedFalse(user1)).thenReturn(List.of()); // 빈 리스트 반환
 
         // when
         List<PostResponse> result = postService.getMyPosts(1);
@@ -331,7 +419,7 @@ class PostServiceTest {
 
         Post post1 = new Post(user1, "title1", "content1");
         Post post2 = new Post(user1, "title2", "content2");
-        when(postRepository.findAllByAuthor(user1)).thenReturn(List.of(post1, post2));
+        when(postRepository.findAllByAuthorAndDeletedFalse(user1)).thenReturn(List.of(post1, post2));
 
         // when
         List<PostResponse> result = postService.getMyPosts(1);

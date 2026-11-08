@@ -46,11 +46,11 @@ public class PostService {
     // 글 목록 조회
     @Transactional(readOnly = true)
     public List<PostResponse> getPosts() {
-        List<Post> postList = postRepository.findAll();
+        List<Post> postList = postRepository.findAllByDeletedFalse();
         
         // postList를 DTO에 맞게 변환
         return postList.stream()    // postList를 하나씩 꺼내는 흐름 만들기
-                .map(post -> PostResponse.from(post))   // 꺼낸 post를 PostResponse로 변환
+                .map(PostResponse::from)   // 꺼낸 post를 PostResponse로 변환
                 .toList();  // 바꾼 결과를 리스트로 모으기
     }
 
@@ -61,6 +61,10 @@ public class PostService {
         Post post = postRepository.findById(id)
                 // 해당 id의 post가 없으면 예외
                 .orElseThrow(PostNotFoundException::new);
+
+        // 이미 삭제된 글인지 확인
+        post.validateNotDeleted();
+
         // PostResponse DTO에 맞춰 리턴
         return PostResponse.from(post);
     }
@@ -74,6 +78,9 @@ public class PostService {
 
         // 본인 확인
         post.validateAuthor(request.getAuthorId());
+
+        // 이미 삭제된 글인지 확인
+        post.validateNotDeleted();
 
         post.update(request.getTitle(), request.getContent());
         // flush - @PreUpdate(updatedAt 세팅)는 flush 때 실행되므로 응답 만들기 전에 먼저 flush함
@@ -95,7 +102,11 @@ public class PostService {
         // 본인 확인
         post.validateAuthor(authorId);
 
-        postRepository.delete(post);
+        // 이미 삭제된 글인지 확인
+        post.validateNotDeleted();
+
+        // 글 삭제 처리
+        post.markDeleted();
     }
 
     // 내가 쓴 글 조회
@@ -106,11 +117,11 @@ public class PostService {
                 .orElseThrow(UserNotFoundException::new);
 
         // 해당 User가 쓴 글 전체 조회
-        List<Post> postList = postRepository.findAllByAuthor(user);
+        List<Post> postList = postRepository.findAllByAuthorAndDeletedFalse(user);
 
         // List<Post> -> List<PostResponse> 변환 및 반환
         return postList.stream()
-                .map(post -> PostResponse.from(post))
+                .map(PostResponse::from)
                 .toList();
     }
 }

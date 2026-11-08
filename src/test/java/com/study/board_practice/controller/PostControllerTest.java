@@ -4,6 +4,7 @@ import com.study.board_practice.dto.PostCreateRequest;
 import com.study.board_practice.dto.PostResponse;
 import com.study.board_practice.dto.PostUpdateRequest;
 import com.study.board_practice.exception.PostAccessDeniedException;
+import com.study.board_practice.exception.PostDeletedException;
 import com.study.board_practice.exception.PostNotFoundException;
 import com.study.board_practice.exception.UserNotFoundException;
 import com.study.board_practice.service.PostService;
@@ -120,6 +121,17 @@ class PostControllerTest {
                 .andExpect(status().isNotFound())
                 .andExpect(content().string("존재하지 않는 글입니다."));
 
+    }
+
+    @Test
+    void 상세_조회_삭제된_글() throws Exception {
+        // given
+        when(postService.getPost(1)).thenThrow(new PostDeletedException());
+
+        // when & then
+        mockMvc.perform(get("/api/posts/1"))
+                .andExpect(status().isGone())
+                .andExpect(content().string("삭제된 글입니다."));
     }
 
     @Test
