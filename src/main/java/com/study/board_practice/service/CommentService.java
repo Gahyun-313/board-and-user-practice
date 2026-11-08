@@ -38,6 +38,7 @@ public class CommentService {
         // 글 찾기
         Post post = postRepository.findById(postId)
                 .orElseThrow(PostNotFoundException::new);
+        post.validateNotDeleted(); // 삭제된 글인지 확인
 
         // 유저 찾기
         User author = userRepository.findById(request.getAuthorId())
@@ -58,6 +59,7 @@ public class CommentService {
         // 글 찾기
         Post post = postRepository.findById(postId)
                 .orElseThrow(PostNotFoundException::new);
+        post.validateNotDeleted(); // 삭제된 글인지 확인
 
         // 댓글 목록 조회
         List<Comment> commentList = commentRepository.findAllByPost(post);
@@ -89,6 +91,9 @@ public class CommentService {
         // 본인 확인
         comment.validateAuthor(request.getAuthorId());
 
+        // 삭제된 글인지 확인
+        comment.getPost().validateNotDeleted();
+
         // 댓글 수정 및 flush
         comment.update(request.getContent());
         // saveAndFlush 아닌 flush인 이유
@@ -110,6 +115,7 @@ public class CommentService {
         // 본인 확인
         comment.validateAuthor(authorId);
 
+        // 삭제된 post인지 확인하지 않는 이유 - 정책상 삭제된 글의 댓글은 삭제할 수 있음(수정은 불가능함)
         // 댓글 삭제
         commentRepository.delete(comment);
     }
