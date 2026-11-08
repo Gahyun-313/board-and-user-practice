@@ -6,10 +6,7 @@ import com.study.board_practice.domain.User;
 import com.study.board_practice.dto.CommentCreateRequest;
 import com.study.board_practice.dto.CommentResponse;
 import com.study.board_practice.dto.CommentUpdateRequest;
-import com.study.board_practice.exception.CommentAccessDeniedException;
-import com.study.board_practice.exception.CommentNotFoundException;
-import com.study.board_practice.exception.PostNotFoundException;
-import com.study.board_practice.exception.UserNotFoundException;
+import com.study.board_practice.exception.*;
 import com.study.board_practice.repository.CommentRepository;
 import com.study.board_practice.repository.PostRepository;
 import com.study.board_practice.repository.UserRepository;
@@ -115,6 +112,31 @@ class CommentServiceTest {
         verify(commentRepository, times(1)).save(any(Comment.class));
     }
 
+    @Test
+    void 댓글생성_실패_삭제된_글() {
+        // given
+        int postId = 3;
+        int authorId = 2;
+
+        User author = new User();
+        Post post = new Post(author, "title", "content");
+        // 글이 존재한다고 가정
+        // 유저 조회 단계 전에 글 조회 단계에서 막히므로 userRepository 스텁 제거
+        when(postRepository.findById(postId)).thenReturn(Optional.of(post));
+
+        // 글 삭제 처리
+        post.markDeleted();
+
+        CommentCreateRequest request = new CommentCreateRequest();
+        request.setAuthorId(authorId);
+        request.setContent("content");
+
+        // when & then
+        assertThatThrownBy(() -> commentService.createComment(postId, request))
+                .isInstanceOf(PostDeletedException.class)
+                .hasMessageContaining("삭제된 글입니다.");
+    }
+
     // ----------------------------------------------------------------
     // getComments
     // ----------------------------------------------------------------
@@ -128,6 +150,24 @@ class CommentServiceTest {
         // when & then
         assertThatThrownBy(() -> commentService.getComments(postId))
                 .isInstanceOf(PostNotFoundException.class);
+    }
+
+    @Test
+    void 댓글목록조회_실패_삭제된_글() {
+        // given
+        int postId = 3;
+
+        Post post = new Post(mock(User.class), "title", "content");
+        post.markDeleted(); // 글 삭제
+        when(postRepository.findById(postId)).thenReturn(Optional.of(post));
+
+        // when & then
+        assertThatThrownBy(() -> commentService.getComments(postId))
+                .isInstanceOf(PostDeletedException.class)
+                .hasMessageContaining("삭제된 글입니다.");
+
+        // 삭제된 글이면 댓글 목록 조회까지 가지 않음
+        verify(commentRepository, never()).findAllByPost(any(Post.class));
     }
 
     @Test
@@ -258,6 +298,37 @@ class CommentServiceTest {
     }
 
     @Test
+    void 댓글수정_실패_삭제된_글() {
+        // given
+        int userId = 11;
+        int commentId = 3;
+
+        // 댓글이 있다고 가정
+        User user = mock(User.class);
+        when(user.getId()).thenReturn(userId);
+
+        Post post = new Post(mock(User.class), "title", "content");
+
+        Comment comment = new Comment(post, user, "content");
+        when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
+
+        post.markDeleted(); // 글 삭제 처리
+
+        CommentUpdateRequest request = new CommentUpdateRequest();
+        request.setAuthorId(userId);
+        request.setContent("update content");
+
+        // when & then
+        assertThatThrownBy(() -> commentService.updateComment(commentId, request))
+                .isInstanceOf(PostDeletedException.class)
+                .hasMessageContaining("삭제된 글입니다.");
+
+        // 수정되지 않았음을 검증
+        assertThat(comment.getContent()).isEqualTo("content");
+        verify(commentRepository, never()).flush();
+    }
+
+    @Test
     void 댓글수정_성공_댓글_있고_본인확인까지_성공() {
         // given
         int commentId = 3;
@@ -336,6 +407,30 @@ class CommentServiceTest {
 
         // then
         verify(commentRepository).delete(comment); // 호출됐는지 확인
+    }
+
+    @Test
+    void 댓글삭제_성공_삭제된_글의_댓글() {
+        // given
+        int commentId = 3;
+        int authorId = 55;
+
+        // 댓글이 있고 작성자와 요청자 id가 같다고 가정
+        Post post = new Post(mock(User.class), "title", "content");
+
+        User author = mock(User.class);
+        Comment comment = new Comment(post, author, "content");
+
+        post.markDeleted(); // 본문 글 삭제 처리
+
+        when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
+        when(author.getId()).thenReturn(authorId);
+
+        // when
+        commentService.deleteComment(commentId, authorId);
+
+        // then
+        verify(commentRepository).delete(comment);
     }
 
 }
