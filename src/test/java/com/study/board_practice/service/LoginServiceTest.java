@@ -14,7 +14,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;                // O
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class) // Spring 없이 순수 Mockito로 테스트
@@ -38,7 +38,7 @@ class LoginServiceTest {
      *      - 일반적인 값/객체 검증용. (정상 흐름).
      *      - 메서드 리턴값이나 어떤 객체를 받아서 그 상태를 체이닝으로 확인
      * [ assertThatThrownBy ]
-     *      - 이 코드(람다)를 실행하면 예외가 떠져야 한다를 검증. (예외 흐름).
+     *      - 이 코드(람다)를 실행하면 예외가 터져야 한다를 검증. (예외 흐름).
      *      - 람다를 인자로 받아서 그 블록을 실행했을 때 예외가 터지는지, 어떤 예외인지, 메시지가 뭔지까지 체이닝으로 검증
      */
 
