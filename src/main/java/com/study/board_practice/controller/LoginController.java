@@ -1,6 +1,7 @@
 package com.study.board_practice.controller;
 
 import com.study.board_practice.dto.LoginRequest;
+import com.study.board_practice.dto.LoginResponse;
 import com.study.board_practice.service.LoginService;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -19,8 +20,9 @@ public class LoginController {
 
     // 메서드
     @PostMapping("/api/users/login")
-    public String login(@RequestBody LoginRequest loginRequest) {
-        return loginService.login(loginRequest);
+    public LoginResponse login(@RequestBody LoginRequest loginRequest) {
+        String token = loginService.login(loginRequest);
+        return new LoginResponse(token);
     }
 
 }

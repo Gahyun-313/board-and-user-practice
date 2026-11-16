@@ -39,3 +39,6 @@ out/
 
 # Claude 출력물
 /claude-outputs/
+
+# 비밀 설정
+application-secret.properties
